@@ -1,13 +1,10 @@
 const User = require("../models/user.model");
 
-// const {
-//   PHONE_NOT_FOUND_ERR,
-
-//   PHONE_ALREADY_EXISTS_ERR,
-//   USER_NOT_FOUND_ERR,
-//   INCORRECT_OTP_ERR,
-//   ACCESS_DENIED_ERR,
-// } = require("../errors");
+const {
+  EMAIL_ALREADY_EXISTS_ERR,
+  USER_NOT_FOUND_ERR,
+  INCORRECT_OTP_ERR,
+} = require("../errors");
 
 // const { checkPassword, hashPassword } = require("../utils/password.util");
 const { createJwtToken } = require("../utils/token.util");
@@ -27,7 +24,7 @@ exports.registerUser = async (req, res, next) => {
       if (!emailExist.password) {
         await User.deleteOne(emailExist);
       } else {
-        next({ status: 400, message: "PHONE_ALREADY_EXISTS_ERR" });
+        next({ status: 400, message: EMAIL_ALREADY_EXISTS_ERR });
         return;
       }
     }
@@ -49,7 +46,7 @@ exports.registerUser = async (req, res, next) => {
           const user = await createUser.save();
           res.status(200).json({
             type: "success",
-            message: "Account created OTP sent to mobile number",
+            message: "Account created OTP sent to Email ID",
             data: {
               userId: user._id,
             },
@@ -59,7 +56,7 @@ exports.registerUser = async (req, res, next) => {
     );
   } catch (error) {
     next(error);
-    next({ status: 400, message: "EMAIL_ALREADY_EXISTS_ERR" });
+    next({ status: 400, message: EMAIL_ALREADY_EXISTS_ERR });
   }
 };
 
@@ -109,15 +106,14 @@ exports.verifyEmailOtp = async (req, res, next) => {
     const { otp, userId } = req.body;
     const user = await User.findById(userId);
     if (!user) {
-      next({ status: 400, message: "USER_NOT_FOUND_ERR" });
+      next({ status: 400, message: USER_NOT_FOUND_ERR });
       return;
     }
 
     if (user.emailOtp !== otp) {
-      next({ status: 400, message: "INCORRECT_OTP_ERR" });
+      next({ status: 400, message: INCORRECT_OTP_ERR });
       return;
     }
-    const token = createJwtToken({ userId: user._id });
 
     user.emailOtp = "";
     await user.save();
@@ -126,7 +122,6 @@ exports.verifyEmailOtp = async (req, res, next) => {
       type: "success",
       message: "OTP verified successfully",
       data: {
-        token,
         userId: user._id,
       },
     });
@@ -140,15 +135,19 @@ exports.setPassword = async (req, res, next) => {
     const { userId, password } = req.body;
     const user = await User.findById(userId);
     if (!user) {
-      next({ status: 400, message: "USER_NOT_FOUND_ERR" });
+      next({ status: 400, message: USER_NOT_FOUND_ERR });
       return;
     }
     const salt = await bcrypt.genSalt(10);
     user.password = await bcrypt.hash(password, salt);
     user.save();
+    const token = createJwtToken({ userId: user._id });
     res.status(201).json({
       type: "success",
       message: "Password set successfully",
+      data: {
+        token: token,
+      },
     });
   } catch (error) {
     next({ status: 400, message: "ERROR_SET_PASSWORD" });
@@ -159,8 +158,8 @@ exports.login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
     const user = await User.findOne({ email: email });
-    const token = createJwtToken({ userId: user._id });
     if (user) {
+      const token = createJwtToken({ userId: user._id });
       // check the user password with the hashed password stored in the database
       const validPassword = await bcrypt.compare(password, user.password);
       if (validPassword) {
@@ -173,10 +172,10 @@ exports.login = async (req, res, next) => {
           },
         });
       } else {
-        res.status(400).json({ error: "Invalid Password" });
+        next({ status: 400, message: "Invalid Password" });
       }
     } else {
-      res.status(401).json({ error: "User does not exist" });
+      next({ status: 400, message: USER_NOT_FOUND_ERR });
     }
   } catch (error) {
     next(error);
