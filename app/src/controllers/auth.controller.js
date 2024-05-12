@@ -24,8 +24,12 @@ exports.registerUser = async (req, res, next) => {
     const emailExist = await User.findOne({ email });
 
     if (emailExist) {
-      next({ status: 400, message: "PHONE_ALREADY_EXISTS_ERR" });
-      return;
+      if (!emailExist.password) {
+        await User.deleteOne(emailExist);
+      } else {
+        next({ status: 400, message: "PHONE_ALREADY_EXISTS_ERR" });
+        return;
+      }
     }
     // generate otp
     const otp = generateOTP(6);
