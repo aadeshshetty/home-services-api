@@ -7,7 +7,7 @@ const {
 } = require("../errors");
 
 // const { checkPassword, hashPassword } = require("../utils/password.util");
-const { createJwtToken } = require("../utils/token.util");
+const { createJwtToken, verifyJwtToken } = require("../utils/token.util");
 const bcrypt = require("bcrypt");
 const { generateOTP, fast2sms, mailSender } = require("../utils/otp.util");
 
@@ -183,6 +183,26 @@ exports.login = async (req, res, next) => {
 };
 
 // --------------- fetch current user -------------------------
+
+exports.fetchUserId = async (req, res, next) => {
+  try {
+    const { token } = req.body;
+    const userId = verifyJwtToken(token, next);
+    if (!userId) {
+      next({ status: 403, message: "Please Login Again" });
+      return;
+    }
+    res.status(201).json({
+      type: "success",
+      message: "User Fetched",
+      data: {
+        userId: userId,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
 
 exports.fetchCurrentUser = async (req, res, next) => {
   try {

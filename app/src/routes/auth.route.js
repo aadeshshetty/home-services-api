@@ -10,6 +10,7 @@ const {
   verifyEmailOtp,
   setPassword,
   login,
+  fetchUserId,
 } = require("../controllers/auth.controller");
 
 router.post("/register", registerUser);
@@ -19,6 +20,7 @@ router.post("/login_with_phone", () => loginUser);
 
 router.post("/verify", verifyEmailOtp);
 router.post("/set-password", setPassword);
+router.post("/get-user", fetchUserId);
 
 router.get(
   "/me",
