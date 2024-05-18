@@ -1,4 +1,7 @@
 const User = require("../models/user.model");
+const Categories = require("../models/categories.model");
+const Services = require("../models/services.model");
+const Cart = require("../models/carts.model");
 
 const {
   EMAIL_ALREADY_EXISTS_ERR,
@@ -235,5 +238,135 @@ exports.handleAdmin = async (req, res, next) => {
     });
   } catch (error) {
     next(error);
+  }
+};
+
+exports.getCategories = async (req, res, next) => {
+  try {
+    const categories = await Categories.find();
+    res.status(201).json({
+      type: "success",
+      message: "categories Fetched",
+      data: {
+        categories: categories,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getServices = async (req, res, next) => {
+  try {
+    const categories = await Categories.find();
+    let services = [];
+    const serv = categories.map(async (data) => {
+      const name = data.categoryname.split(" ").join("");
+      const model = Services(name);
+      const servs = await model.find();
+      services.push(...servs);
+    });
+    await Promise.all(serv);
+    res.status(201).json({
+      type: "success",
+      message: "categories Fetched",
+      data: {
+        services: services,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getCategoryServices = async (req, res, next) => {
+  try {
+    const { categoryName } = req.body;
+    const model = Services(categoryName);
+    const services = await model.find();
+    res.status(201).json({
+      type: "success",
+      message: "categories Fetched",
+      data: {
+        services: services,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.addToCart = async (req, res, next) => {
+  try {
+    const { token, servicename, Workers, Price } = req.body;
+    const userId = verifyJwtToken(token, next);
+    let ifExists = false;
+    if (!userId) {
+      next({ status: 403, message: "Please Login Again" });
+      return;
+    }
+    const existingServices = await Cart.find({ userId }).exec();
+    existingServices.map((data) => {
+      if (data.servicename === servicename) {
+        next({ status: 400, message: "Already Exists" });
+        ifExists = true;
+        return;
+      }
+    });
+    if (!ifExists) {
+      const cart = new Cart({
+        userId,
+        servicename,
+        Workers,
+        Price,
+      });
+      await cart.save();
+      res.status(201).json({
+        type: "success",
+        message: "cart item added",
+      });
+    }
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getCartItems = async (req, res, next) => {
+  try {
+    const { token } = req.body;
+    const userId = verifyJwtToken(token, next);
+    if (!userId) {
+      next({ status: 403, message: "Please Login Again" });
+      return;
+    }
+    const existingServices = await Cart.find({ userId }).exec();
+    res.status(201).json({
+      type: "success",
+      message: "cart items fetched",
+      data: {
+        cartItems: existingServices,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.removeFromCart = async (req, res, next) => {
+  try {
+    const { token, servicename, Workers, Price } = req.body;
+    const userId = verifyJwtToken(token, next);
+    let ifExists = false;
+    if (!userId) {
+      next({ status: 403, message: "Please Login Again" });
+      return;
+    }
+    await Cart.findOneAndDelete({ userId, servicename });
+    res.status(201).json({
+      type: "success",
+      message: "cart items removed",
+    });
+  } catch (err) {
+    next(err);
   }
 };

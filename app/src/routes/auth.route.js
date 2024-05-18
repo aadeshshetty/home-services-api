@@ -11,6 +11,12 @@ const {
   setPassword,
   login,
   fetchUserId,
+  getCategories,
+  getServices,
+  getCategoryServices,
+  addToCart,
+  getCartItems,
+  removeFromCart,
 } = require("../controllers/auth.controller");
 
 router.post("/register", registerUser);
@@ -21,6 +27,12 @@ router.post("/login_with_phone", () => loginUser);
 router.post("/verify", verifyEmailOtp);
 router.post("/set-password", setPassword);
 router.post("/get-user", fetchUserId);
+router.get("/get-categories", getCategories);
+router.get("/get-services", getServices);
+router.post("/get-services", getCategoryServices);
+router.post("/add-to-cart", addToCart);
+router.post("/get-cart", getCartItems);
+router.post("/remove-from-cart", removeFromCart);
 
 router.get(
   "/me",
