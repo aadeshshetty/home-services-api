@@ -1,6 +1,7 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
+const Razorpay = require("razorpay");
 require("dotenv").config();
 
 const { PORT, MONGODB_URI, NODE_ENV, ORIGIN } = require("./config");

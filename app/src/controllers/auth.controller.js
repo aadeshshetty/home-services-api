@@ -2,6 +2,11 @@ const User = require("../models/user.model");
 const Categories = require("../models/categories.model");
 const Services = require("../models/services.model");
 const Cart = require("../models/carts.model");
+const Order = require("../models/orders.model");
+const { razorpayInstance } = require("../config");
+
+const uuid = require("uuid");
+const crypto = require("crypto");
 
 const {
   EMAIL_ALREADY_EXISTS_ERR,
@@ -368,5 +373,68 @@ exports.removeFromCart = async (req, res, next) => {
     });
   } catch (err) {
     next(err);
+  }
+};
+
+exports.createOrder = async (req, res, next) => {
+  try {
+    const { amount, token } = req.body;
+    const userId = verifyJwtToken(token, next);
+    if (!userId) {
+      next({ status: 403, message: "Please Login Again" });
+      return;
+    }
+    const receiptId = "Order_RCPT_" + uuid.v4();
+    const orderData = {
+      UserId: userId,
+      PaymentStatus: "pending",
+      Amount: amount,
+      ReceiptId: receiptId,
+    };
+    const order = new Order(orderData);
+    await order.save();
+    const razorpayData = {
+      amount: amount,
+      currency: "INR",
+      receipt: receiptId,
+      payment_capture: 1,
+    };
+    razorpayInstance.orders
+      .create(razorpayData)
+      .then((razorpayOrder) => {
+        const orderId = razorpayOrder.id;
+        res.status(500).json({
+          type: "success",
+          message: "order created",
+          data: {
+            orderId: orderId,
+          },
+        });
+      })
+      .catch((err) => {
+        res.status(500).json({
+          type: "failure",
+          message: "Payment failed",
+        });
+      });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.paymentVerify = async (req, res) => {
+  const { orderId, paymentId, signature } = req.body;
+
+  const crypto = require("crypto");
+  const generated_signature = crypto
+    .createHmac("sha256", "YOUR_RAZORPAY_KEY_SECRET")
+    .update(orderId + "|" + paymentId)
+    .digest("hex");
+
+  if (generated_signature === signature) {
+    await Order.updateOne({ orderId }, { PaymentStatus: "paid" });
+    res.json({ status: "Payment verified successfully" });
+  } else {
+    res.status(400).json({ status: "Invalid signature" });
   }
 };

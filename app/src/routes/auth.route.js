@@ -17,6 +17,8 @@ const {
   addToCart,
   getCartItems,
   removeFromCart,
+  createOrder,
+  paymentVerify,
 } = require("../controllers/auth.controller");
 
 router.post("/register", registerUser);
@@ -33,6 +35,8 @@ router.post("/get-services", getCategoryServices);
 router.post("/add-to-cart", addToCart);
 router.post("/get-cart", getCartItems);
 router.post("/remove-from-cart", removeFromCart);
+router.post("/generate-order", createOrder);
+router.post("/verify-payment", paymentVerify);
 
 router.get(
   "/me",
