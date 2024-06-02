@@ -378,23 +378,24 @@ exports.removeFromCart = async (req, res, next) => {
 
 exports.createOrder = async (req, res, next) => {
   try {
-    const { amount, token } = req.body;
+    const { amount, token, cartList } = req.body;
     const userId = verifyJwtToken(token, next);
     if (!userId) {
       next({ status: 403, message: "Please Login Again" });
       return;
     }
-    const receiptId = "Order_RCPT_" + uuid.v4();
+    const receiptId = "Order_RCPT_" + crypto.randomBytes(12).toString("hex");
     const orderData = {
       UserId: userId,
       PaymentStatus: "pending",
       Amount: amount,
       ReceiptId: receiptId,
+      CartList: cartList,
     };
     const order = new Order(orderData);
     await order.save();
     const razorpayData = {
-      amount: amount,
+      amount: amount * 100,
       currency: "INR",
       receipt: receiptId,
       payment_capture: 1,
@@ -403,7 +404,7 @@ exports.createOrder = async (req, res, next) => {
       .create(razorpayData)
       .then((razorpayOrder) => {
         const orderId = razorpayOrder.id;
-        res.status(500).json({
+        res.status(200).json({
           type: "success",
           message: "order created",
           data: {
@@ -412,27 +413,33 @@ exports.createOrder = async (req, res, next) => {
         });
       })
       .catch((err) => {
+        console.log(err);
         res.status(500).json({
           type: "failure",
           message: "Payment failed",
         });
       });
   } catch (err) {
+    console.log(err);
     next(err);
   }
 };
 
-exports.paymentVerify = async (req, res) => {
-  const { orderId, paymentId, signature } = req.body;
-
-  const crypto = require("crypto");
-  const generated_signature = crypto
-    .createHmac("sha256", "YOUR_RAZORPAY_KEY_SECRET")
-    .update(orderId + "|" + paymentId)
-    .digest("hex");
-
-  if (generated_signature === signature) {
-    await Order.updateOne({ orderId }, { PaymentStatus: "paid" });
+exports.paymentVerify = async (req, res, next) => {
+  const { orderId, paymentId, signature, token } = req.body;
+  const userId = verifyJwtToken(token, next);
+  if (!userId) {
+    next({ status: 403, message: "Please Login Again" });
+    return;
+  }
+  const hmac = crypto.createHmac("sha256", process.env.RAZORPAY_KEY_SECRET);
+  hmac.update(orderId + "|" + paymentId);
+  let generatedSignature = hmac.digest("hex");
+  if (generatedSignature === signature) {
+    const update = await Order.updateOne(
+      { UserId: userId },
+      { $set: { PaymentStatus: "paid" } }
+    );
     res.json({ status: "Payment verified successfully" });
   } else {
     res.status(400).json({ status: "Invalid signature" });

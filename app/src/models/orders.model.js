@@ -18,6 +18,11 @@ const orderSchema = new Schema(
       type: String,
       required: true,
     },
+    CartList: [
+      {
+        type: String,
+      },
+    ],
   },
   { timestamps: true }
 );
